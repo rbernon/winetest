@@ -13,7 +13,7 @@ jobs:
       options: --user root --device=/dev/kvm --device=/dev/net/tun --cap-add NET_ADMIN -p 8006:8006
 
     env:
-      VERSION: 10l
+      VERSION: 10
 
     steps:
       - name: Check
@@ -56,7 +56,7 @@ jobs:
     strategy:
       matrix:
         arch: [wow64, win64]
-        version: [w10ltsc64]
+        version: [w10pro64]
 
     steps:
       - name: Checkout
