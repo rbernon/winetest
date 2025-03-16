@@ -15,6 +15,7 @@ case $VERSION in
   w10ltsc64) INFO="Windows 10 LTSC 64bit";;
   w81e64)    INFO="Windows 8.1 Enterprise 64bit";;
   w7e64)     INFO="Windows 7 Enterprise 64bit";;
+  w10pro-arm64) INFO="Windows 10 Pro ARM 64bit";;
 esac
 
 INFO="$INFO / QEMU running on $PRETTY_NAME / $(uname -a), "

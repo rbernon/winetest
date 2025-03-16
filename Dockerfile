@@ -1,4 +1,4 @@
-FROM dockurr/windows
+FROM dockurr/windows-arm
 
 COPY install.bat /oem/install.bat
 COPY startup.bat /oem/startup.bat
@@ -18,6 +18,6 @@ ENV DISPLAY="disabled"
 ENV REGION="en-US"
 ENV KEYBOARD="en-US"
 ENV LANGUAGE="English"
-ENV ARGUMENTS="-device virtio-vga,xres=1920,yres=1080 -device ich9-intel-hda -device hda-output -audio none"
+ENV ARGUMENTS="-device virtio-vga,xres=1920,yres=1080 -device intel-hda -device hda-output -audio none"
 
 CMD ["/bin/bash"]
