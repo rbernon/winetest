@@ -5,179 +5,86 @@ on:
     - cron: '30 3 * * *'
 
 jobs:
-  build-linux:
+  install:
     runs-on: ubuntu-latest
+
     container:
-      image: rbernon/winehq:stable
-      options: --user root
+      image: rbernon/winetest-windows:stable
+      options: --user root --device=/dev/kvm --device=/dev/net/tun --cap-add NET_ADMIN -p 8006:8006
+
+    env:
+      VERSION: 7e
+
+    steps:
+      - name: Check
+        id: cache-check
+        uses: actions/cache/restore@v4
+        with:
+          lookup-only: true
+          path: /storage
+          key:
+            storage-${{ github.run_id }}
+          restore-keys: |
+            storage
+
+      - name: Cache
+        if: steps.cache-check.outputs.cache-hit == ''
+        uses: actions/cache@v4
+        with:
+          path: /storage
+          key:
+            storage-${{ github.run_id }}
+          restore-keys: |
+            storage
+
+      - name: Install
+        if: steps.cache-check.outputs.cache-hit == ''
+        run: |
+          mkisofs -J -o /drivers.iso /data
+          chmod +x /run/entry.sh
+          /usr/bin/tini -s -- /run/entry.sh
+          rm -f /drivers.iso
+
+  winetest:
+    runs-on: ubuntu-latest
+    needs: install
+
+    container:
+      image: rbernon/winetest-windows:stable
+      options: --user root --device=/dev/kvm --device=/dev/net/tun --cap-add NET_ADMIN -p 8006:8006
+
     strategy:
       matrix:
-        arch: [win32, win64]
+        arch: [wow64, win64]
+        version: [w7e64]
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
-          path: .ccache
+          path: /storage
           key:
-            cache-linux-${{ matrix.arch }}-${{ github.run_id }}
+            storage-${{ github.run_id }}
           restore-keys: |
-            cache-linux-${{ matrix.arch }}
+            storage
 
-      - name: Build
+      - name: Execute
+        timeout-minutes: 90
         run: |
-          $PWD/build-linux ${{ matrix.arch }}
+          $PWD/test-windows ${{ matrix.version }} ${{ matrix.arch }} ${{ github.event_name }}
 
       - name: Upload
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: build-linux-${{ matrix.arch }}
-          path: usr
-
-  test-linux:
-    needs: [build-linux]
-    runs-on: ubuntu-latest
-    container:
-      image: rbernon/winehq:stable
-      options: --user root
-    strategy:
-      matrix:
-        arch: [win32, win64]
-        test: [nulldrv, desktop, fvwm, openbox, kwin, mutter, modeset, wayland, vulkan]
-        include:
-          - arch: wow64
-            test: fvwm
-          - arch: wow64
-            test: vulkan
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Download
-        if: ${{ matrix.arch == 'wow64' }}
-        uses: actions/download-artifact@v4
-        with:
-          name: build-linux-win64
-
-      - name: Download
-        if: ${{ matrix.arch != 'wow64' }}
-        uses: actions/download-artifact@v4
-        with:
-          name: build-linux-${{ matrix.arch }}
-
-      - name: Test
-        run: |
-          chmod +x local/bin/* local/lib/wine/*-unix/wine*
-          useradd github && mkdir -p /home/github /home/github/Documents /home/github/Desktop && chown github:github -R /home/github
-          su - github $PWD/test-linux $PWD ${{ matrix.arch }} ${{ matrix.test }} ${{ github.event_name }}
-
-      - name: Upload
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-linux-${{ matrix.test }}-${{ matrix.arch }}.report
-          path: /home/github/*.report
-
-  build-macos:
-    runs-on: macos-13
-    strategy:
-      matrix:
-        arch: [win64]
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Cache
-        uses: actions/cache@v4
-        with:
-          path: .ccache
-          key:
-            cache-macos-${{ matrix.arch }}-${{ github.run_id }}
-          restore-keys: |
-            cache-macos-${{ matrix.arch }}
-
-      - name: Build
-        run: |
-          $PWD/build-macos ${{ matrix.arch }}
-
-      - name: Upload
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-macos-${{ matrix.arch }}
-          path: usr
-
-  test-macos:
-    needs: [build-macos]
-    runs-on: macos-13
-    strategy:
-      matrix:
-        arch: [win64]
-        test: [opengl, vulkan]
-        include:
-          - arch: wow64
-            test: opengl
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Download
-        uses: actions/download-artifact@v4
-        with:
-          name: build-macos-win64
-
-      - name: Test
-        run: |
-          chmod +x local/bin/* local/lib/wine/*-unix/wine*
-          $PWD/test-macos $PWD ${{ matrix.arch }} ${{ matrix.test }} ${{ github.event_name }}
-
-      - name: Upload
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-macos-${{ matrix.test }}-${{ matrix.arch }}.report
-          path: macos-*.report
-
-  test-macos-m1ros2:
-    needs: [build-macos]
-    runs-on: macos-14
-    strategy:
-      matrix:
-        arch: [win64, wow64]
-        test: [m1ros2-vulkan]
-        include:
-          - arch: wow64
-            test: m1ros2-opengl
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Download
-        uses: actions/download-artifact@v4
-        with:
-          name: build-macos-win64
-
-      - name: Test
-        run: |
-          arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
-          eval "$(/usr/local/bin/brew shellenv)"
-          arch -x86_64 brew install --overwrite python
-
-          chmod +x local/bin/* local/lib/wine/*-unix/wine*
-          arch -x86_64 $PWD/test-macos $PWD ${{ matrix.arch }} ${{ matrix.test }} ${{ github.event_name }}
-
-      - name: Upload
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-macos-${{ matrix.test }}-${{ matrix.arch }}.report
-          path: m1ros2-*.report
+          name: test-${{ matrix.version }}-${{ matrix.arch }}.report
+          path: /data/winetest.report
 
   clean:
-    needs: [test-linux, test-macos, test-macos-m1ros2]
+    needs: winetest
     runs-on: ubuntu-latest
     steps:
       - name: Cleanup
