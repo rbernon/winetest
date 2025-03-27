@@ -1,0 +1,89 @@
+name: tests-linux
+on:
+  workflow_call:
+    inputs:
+      event:
+        type: string
+        default: "push"
+
+jobs:
+  test-linux:
+    runs-on: ubuntu-latest
+    container:
+      image: rbernon/winehq:stable
+      options: --user root
+    strategy:
+      matrix:
+        arch: [win32, win64]
+        test: [nulldrv, desktop, fvwm, openbox, kwin, mutter, modeset, wayland, vulkan]
+        include:
+          - arch: wow64
+            test: fvwm
+          - arch: wow64
+            test: vulkan
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download
+        if: ${{ matrix.arch == 'wow64' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: build-linux-win64
+
+      - name: Download
+        if: ${{ matrix.arch != 'wow64' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: build-linux-${{ matrix.arch }}
+
+      - name: Test
+        run: |
+          chmod +x local/bin/* local/lib/wine/*-unix/wine*
+          useradd github && mkdir -p /home/github /home/github/Documents /home/github/Desktop && chown github:github -R /home/github
+          su - github $PWD/test-linux $PWD ${{ matrix.arch }} ${{ matrix.test }} ${{ inputs.event }}
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-linux-${{ matrix.test }}-${{ matrix.arch }}.report
+          path: /home/github/*.report
+
+  test-linux-trixie:
+    runs-on: ubuntu-latest
+    container:
+      image: rbernon/winehq:trixie
+      options: --user root
+    strategy:
+      matrix:
+        arch: [win32, win64]
+        test: [trixie]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download
+        if: ${{ matrix.arch == 'wow64' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: build-linux-win64
+
+      - name: Download
+        if: ${{ matrix.arch != 'wow64' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: build-linux-${{ matrix.arch }}
+
+      - name: Test
+        run: |
+          chmod +x local/bin/* local/lib/wine/*-unix/wine*
+          useradd github && mkdir -p /home/github /home/github/Documents /home/github/Desktop && chown github:github -R /home/github
+          su - github $PWD/test-linux $PWD ${{ matrix.arch }} ${{ matrix.test }} ${{ inputs.event }}
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-linux-${{ matrix.test }}-${{ matrix.arch }}.report
+          path: /home/github/*.report

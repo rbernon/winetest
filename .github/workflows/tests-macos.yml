@@ -1,0 +1,72 @@
+name: tests-macos
+on:
+  workflow_call:
+    inputs:
+      event:
+        type: string
+        default: "push"
+
+jobs:
+  test-macos:
+    runs-on: macos-13
+    strategy:
+      matrix:
+        arch: [win64]
+        test: [opengl, vulkan]
+        include:
+          - arch: wow64
+            test: opengl
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download
+        uses: actions/download-artifact@v4
+        with:
+          name: build-macos-win64
+
+      - name: Test
+        run: |
+          chmod +x local/bin/* local/lib/wine/*-unix/wine*
+          $PWD/test-macos $PWD ${{ matrix.arch }} ${{ matrix.test }} ${{ inputs.event }}
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-macos-${{ matrix.test }}-${{ matrix.arch }}.report
+          path: macos-*.report
+
+  test-macos-m1ros2:
+    runs-on: macos-14
+    strategy:
+      matrix:
+        arch: [win64, wow64]
+        test: [m1ros2-vulkan]
+        include:
+          - arch: wow64
+            test: m1ros2-opengl
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download
+        uses: actions/download-artifact@v4
+        with:
+          name: build-macos-win64
+
+      - name: Test
+        run: |
+          arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
+          eval "$(/usr/local/bin/brew shellenv)"
+          arch -x86_64 brew install --overwrite python
+
+          chmod +x local/bin/* local/lib/wine/*-unix/wine*
+          arch -x86_64 $PWD/test-macos $PWD ${{ matrix.arch }} ${{ matrix.test }} ${{ inputs.event }}
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-macos-${{ matrix.test }}-${{ matrix.arch }}.report
+          path: m1ros2-*.report

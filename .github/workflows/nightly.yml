@@ -1,0 +1,37 @@
+name: nightly
+on:
+  push:
+  schedule:
+    - cron: '30 3 * * *'
+
+jobs:
+  build-linux:
+    uses: ./.github/workflows/build-linux.yml
+    with:
+      commit: master
+
+  build-macos:
+    uses: ./.github/workflows/build-macos.yml
+    with:
+      commit: master
+
+  tests-linux:
+    needs: build-linux
+    uses: ./.github/workflows/tests-linux.yml
+    with:
+      event: ${{ github.event_name }}
+
+  tests-macos:
+    needs: build-macos
+    uses: ./.github/workflows/tests-macos.yml
+    with:
+      event: ${{ github.event_name }}
+
+  clean:
+    needs: [tests-linux, tests-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cleanup
+        uses: rbernon/workflow-cleanup@main
+        with:
+          workflow: all

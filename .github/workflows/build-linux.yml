@@ -1,0 +1,42 @@
+name: build-linux
+on:
+  workflow_call:
+    inputs:
+      commit:
+        type: string
+        default: "master"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: rbernon/winehq:stable
+      options: --user root
+    strategy:
+      matrix:
+        arch: [win32, win64]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .ccache
+            wine
+          key:
+            cache-linux-${{ matrix.arch }}-${{ github.run_id }}
+          restore-keys: |
+            cache-linux-${{ matrix.arch }}
+
+      - name: Build
+        run: |
+          $PWD/build-linux ${{ matrix.arch }}
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-linux-${{ matrix.arch }}
+          path: usr
