@@ -6,22 +6,26 @@ on:
 
 jobs:
   build-linux:
+    if: ${{ endsWith(github.repository, 'winetest') }}
     uses: ./.github/workflows/build-linux.yml
     with:
       commit: master
 
   build-macos:
+    if: ${{ endsWith(github.repository, 'winetest') }}
     uses: ./.github/workflows/build-macos.yml
     with:
       commit: master
 
   tests-linux:
+    if: ${{ endsWith(github.repository, 'winetest') }}
     needs: build-linux
     uses: ./.github/workflows/tests-linux.yml
     with:
       event: ${{ github.event_name }}
 
   tests-macos:
+    if: ${{ endsWith(github.repository, 'winetest') }}
     needs: build-macos
     uses: ./.github/workflows/tests-macos.yml
     with:

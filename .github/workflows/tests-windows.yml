@@ -1,0 +1,113 @@
+name: tests-windows
+on:
+  workflow_call:
+    inputs:
+      install:
+        type: string
+        default: "11"
+      version:
+        install:
+          type: string
+          default: "w11pro64"
+      run_id:
+        install:
+          type: string
+          default: ${{ github.run_id }}
+      event:
+        type: string
+        default: "push"
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+
+    container:
+      image: rbernon/winetest-windows:stable
+      options: --user root --device=/dev/kvm --device=/dev/net/tun --cap-add NET_ADMIN -p 8006:8006
+
+    env:
+      VERSION: ${{ input.install }}
+
+    steps:
+      - name: Check
+        id: cache-check
+        uses: actions/cache/restore@v4
+        with:
+          lookup-only: true
+          path: /storage
+          key:
+            storage-${{ github.run_id }}
+          restore-keys: |
+            storage
+
+      - name: Cache
+        if: steps.cache-check.outputs.cache-hit == ''
+        uses: actions/cache@v4
+        with:
+          path: /storage
+          key:
+            storage-${{ github.run_id }}
+          restore-keys: |
+            storage
+
+      - name: Install
+        if: steps.cache-check.outputs.cache-hit == ''
+        run: |
+          mkisofs -J -o /drivers.iso /data
+          chmod +x /run/entry.sh
+          /usr/bin/tini -s -- /run/entry.sh
+          rm -f /drivers.iso
+
+  tests:
+    needs: install
+    runs-on: ubuntu-latest
+
+    container:
+      image: rbernon/winetest-windows:stable
+      options: --user root --device=/dev/kvm --device=/dev/net/tun --cap-add NET_ADMIN -p 8006:8006
+
+    strategy:
+      matrix:
+        arch: [wow64, win64]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: /storage
+          key:
+            storage-${{ github.run_id }}
+          restore-keys: |
+            storage
+
+      - name: Download
+        uses: actions/download-artifact@v4
+        with:
+          name: build-linux-win64
+          github-token: ${{ github.token }}
+          repository: rbernon/winetest
+          run-id: ${{ inputs.run_id }}
+
+      - name: Execute
+        timeout-minutes: 90
+        run: |
+          $PWD/test-windows ${{ inputs.version }} ${{ matrix.arch }} ${{ inputs.event }}
+
+      - name: Upload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-${{ inputs.version }}-${{ matrix.arch }}.report
+          path: /data/winetest.report
+
+  clean:
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cleanup
+        uses: rbernon/workflow-cleanup@main
+        with:
+          workflow: all

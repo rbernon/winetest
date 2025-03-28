@@ -1,0 +1,44 @@
+#!/bin/bash
+
+set -Eeux
+
+VERSION="$1"
+ARCH="$2"
+EVENT="${3:-push}"
+
+. /etc/os-release
+
+case $VERSION in
+  w11pro64)  INFO="Windows 11 Pro 64bit";;
+  w11ltsc64) INFO="Windows 11 LTSC 64bit";;
+  w10pro64)  INFO="Windows 10 Pro 64bit";;
+  w10ltsc64) INFO="Windows 10 LTSC 64bit";;
+  w81e64)    INFO="Windows 8.1 Enterprise 64bit";;
+  w7e64)     INFO="Windows 7 Enterprise 64bit";;
+esac
+
+INFO="$INFO / QEMU running on $PRETTY_NAME / $(uname -a), "
+INFO="$INFO[CPU:$CPU_CORES*$(lscpu|grep "Model name:"|cut -d: -f2-|xargs echo)"
+INFO="$INFO RAM:$RAM_SIZE display:1920x1080 virtio-vga x1"
+INFO="$INFO]"
+
+case $ARCH in
+  win32) WINETEST="i386-windows/winetest.exe";   TESTLIST="";;
+  wow64) WINETEST="i386-windows/winetest.exe";   TESTLIST="";;
+  win64) WINETEST="x86_64-windows/winetest.exe"; TESTLIST=" -n ntoskrnl.exe";;
+esac
+
+cp $WINETEST /data/winetest.exe
+echo "start sudo winetest.exe -q -o \\\\host.lan\\data\\winetest.report -t rbernon-$VERSION-$ARCH -m \"Remi Bernon <rbernon@codeweavers.com>\" -i \"$INFO\" $TESTLIST" >/data/autorun.bat
+
+mkisofs -J -o /drivers.iso /data
+/usr/bin/tini -s -- /run/entry.sh
+rm -f /drivers.iso
+
+ls /data
+cat /data/autorun.bat
+
+case $EVENT in
+  # push) echo curl 'https://test.winehq.org/submit' -X POST -F reportfile=@/data/winetest.report -F submit="Upload File";;
+  *) curl 'https://test.winehq.org/submit' -X POST -F reportfile=@/data/winetest.report -F submit="Upload File" ||:;;
+esac
