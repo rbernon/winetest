@@ -1,0 +1,56 @@
+name: build-windows
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        default: ""
+    secrets:
+      DOCKER_HUB_USERNAME:
+        required: true
+      DOCKER_HUB_PASSWORD:
+        required: true
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+
+    container:
+      image: ${{ startsWith(inputs.version, 'rbernon/private:') && inputs.version || 'rbernon/winetest-windows:stable' }}
+      options: --user root --device=/dev/kvm --device=/dev/net/tun --cap-add NET_ADMIN -p 8006:8006
+      credentials:
+        username: ${{ secrets.DOCKER_HUB_USERNAME }}
+        password: ${{ secrets.DOCKER_HUB_PASSWORD }}
+
+    env:
+      VERSION: ${{ startsWith(inputs.version, 'rbernon/private:') && '' || inputs.version }}
+
+    steps:
+      - name: Check
+        id: cache-check
+        uses: actions/cache/restore@v4
+        with:
+          lookup-only: true
+          path: /storage
+          key:
+            storage-${{ github.run_id }}
+          restore-keys: |
+            storage
+
+      - name: Cache
+        if: steps.cache-check.outputs.cache-hit == ''
+        uses: actions/cache@v4
+        with:
+          path: /storage
+          key:
+            storage-${{ github.run_id }}
+          restore-keys: |
+            storage
+
+      - name: Install
+        if: steps.cache-check.outputs.cache-hit == ''
+        run: |
+          mkisofs -J -o /drivers.iso /data
+          chmod +x /run/entry.sh
+          /usr/bin/tini -s -- /run/entry.sh
+          rm -f /drivers.iso

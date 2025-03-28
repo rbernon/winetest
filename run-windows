@@ -1,0 +1,14 @@
+#!/bin/bash
+
+RUN=$1
+EVENT=$2
+
+RUN=gh workflow run windows
+
+$RUN -R rbernon/winetest-w7u-i386 -f version=w7u32      -f install=rbernon/private:win7u-i386-en -f archs=["win32"] ||:
+$RUN -R rbernon/winetest-w7e      -f version=w7e64      -f install=7e ||:
+$RUN -R rbernon/winetest-w81e     -f version=w81e64     -f install=8e ||:
+$RUN -R rbernon/winetest-w10pro   -f version=w10pro64   -f install=10 ||:
+$RUN -R rbernon/winetest-w10ltsc  -f version=w10ltsc64  -f install=10l ||:
+$RUN -R rbernon/winetest-w11pro   -f version=w11pro64   -f install=11 ||:
+$RUN -R rbernon/winetest-w11ltsc  -f version=w11ltsc64  -f install=11l ||:

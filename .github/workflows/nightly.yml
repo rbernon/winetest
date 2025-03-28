@@ -6,29 +6,45 @@ on:
 
 jobs:
   build-linux:
+    if: ${{ endsWith(github.repository, 'winetest') }}
     uses: ./.github/workflows/build-linux.yml
     with:
       commit: master
 
   build-macos:
+    if: ${{ endsWith(github.repository, 'winetest') }}
     uses: ./.github/workflows/build-macos.yml
     with:
       commit: master
 
   tests-linux:
+    if: ${{ endsWith(github.repository, 'winetest') }}
     needs: build-linux
     uses: ./.github/workflows/tests-linux.yml
     with:
       event: ${{ github.event_name }}
 
   tests-macos:
+    if: ${{ endsWith(github.repository, 'winetest') }}
     needs: build-macos
     uses: ./.github/workflows/tests-macos.yml
     with:
       event: ${{ github.event_name }}
 
+  tests-windows:
+    if: ${{ endsWith(github.repository, 'winetest') }}
+    needs: build-linux
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    env:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+    steps:
+      - run: |
+          $PWD/run-windows ${{ github.run_id }} ${{ github.event_name }}
+
   clean:
-    needs: [tests-linux, tests-macos]
+    needs: [tests-linux, tests-macos, tests-windows]
     runs-on: ubuntu-latest
     steps:
       - name: Cleanup

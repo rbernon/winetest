@@ -1,0 +1,46 @@
+name: windows
+on:
+  workflow_dispatch:
+    inputs:
+      install:
+        type: string
+        default: "11"
+      version:
+        type: string
+        default: "w11pro64"
+      run_id:
+        type: string
+        default: "0"
+      archs:
+        type: string
+        default: '["wow64", "win64"]'
+      event:
+        type: string
+        default: "push"
+
+jobs:
+  build-windows:
+    uses: ./.github/workflows/build-windows.yml
+    secrets: inherit
+    with:
+      version: ${{ inputs.install }}
+
+  tests-windows:
+    needs: build-windows
+    if: ${{ inputs.run_id != 0 }}
+    uses: ./.github/workflows/tests-windows.yml
+    secrets: inherit
+    with:
+      version: ${{ inputs.version }}
+      run_id: ${{ inputs.run_id }}
+      archs: ${{ inputs.archs }}
+      event: ${{ inputs.event }}
+
+  clean:
+    needs: [tests-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cleanup
+        uses: rbernon/workflow-cleanup@main
+        with:
+          workflow: all
