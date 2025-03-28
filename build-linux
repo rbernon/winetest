@@ -3,7 +3,7 @@
 set -Eeux
 
 case $1 in
-    win64) export CONFIGURE_ARGS="--enable-win64 --enable-archs=i386,x86_64";;
+    win64) export CONFIGURE_ARGS="--enable-win64";;
     win32) export CONFIGURE_ARGS="";;
 esac
 
