@@ -31,8 +31,25 @@ jobs:
     with:
       event: ${{ github.event_name }}
 
+  tests-windows:
+    if: false # ${{ endsWith(github.repository, 'winetest') }}
+    needs: build-linux
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    env:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+    steps:
+      - run: |
+          gh -R rbernon/winetest-w7e        workflow run tests-windows -f run_id=${{ github.run_id }} -f event=${{ github.event_name }} -f install=7e   -f version=w7e64 ||:
+          gh -R rbernon/winetest-w81e       workflow run tests-windows -f run_id=${{ github.run_id }} -f event=${{ github.event_name }} -f install=81e  -f version=w81e64 ||:
+          gh -R rbernon/winetest-w10pro     workflow run tests-windows -f run_id=${{ github.run_id }} -f event=${{ github.event_name }} -f install=10   -f version=w10pro64 ||:
+          gh -R rbernon/winetest-w10ltsc    workflow run tests-windows -f run_id=${{ github.run_id }} -f event=${{ github.event_name }} -f install=10l  -f version=w10ltsc64 ||:
+          gh -R rbernon/winetest-w11pro     workflow run tests-windows -f run_id=${{ github.run_id }} -f event=${{ github.event_name }} -f install=11   -f version=w11pro64 ||:
+          gh -R rbernon/winetest-w11ltsc    workflow run tests-windows -f run_id=${{ github.run_id }} -f event=${{ github.event_name }} -f install=11l  -f version=w11ltsc64 ||:
+
   clean:
-    needs: [tests-linux, tests-macos]
+    needs: [tests-linux, tests-macos, tests-windows]
     runs-on: ubuntu-latest
     steps:
       - name: Cleanup
