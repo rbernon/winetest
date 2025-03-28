@@ -61,6 +61,6 @@ $WINE $WINETEST -q -o $TEST-$ARCH.report -t rbernon-$TEST-$ARCH -i "$INFO" \
   -m "Rémi Bernon <rbernon@codeweavers.com>" ||:
 
 case $EVENT in
-  push) echo curl 'https://test.winehq.org/submit' -X POST -F reportfile=@$TEST-$ARCH.report -F submit="Upload File";;
+  # push) echo curl 'https://test.winehq.org/submit' -X POST -F reportfile=@$TEST-$ARCH.report -F submit="Upload File";;
   *) curl 'https://test.winehq.org/submit' -X POST -F reportfile=@$TEST-$ARCH.report -F submit="Upload File";;
 esac
